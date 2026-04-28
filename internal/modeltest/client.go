@@ -51,11 +51,13 @@ type Client struct {
 }
 
 // NewClient returns a Client configured for the given base URL + API key.
+// It uses a plain transport with no baked-in ResponseHeaderTimeout; the
+// per-request context timeout (MaxTimeout) is the single source of truth
+// so individual suites can legitimately wait longer (e.g. image generation).
 func NewClient(baseURL, apiKey string) *Client {
 	transport := &http.Transport{
-		Proxy:                 nil, // never route through the OS/HTTP proxy
-		DisableCompression:    false,
-		ResponseHeaderTimeout: 120 * time.Second,
+		Proxy:              nil, // never route through the OS/HTTP proxy
+		DisableCompression: false,
 	}
 	return &Client{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
@@ -66,7 +68,8 @@ func NewClient(baseURL, apiKey string) *Client {
 	}
 }
 
-// SetTimeout applies a per-request timeout (0 disables the timeout).
+// SetTimeout applies a per-request timeout (0 disables the timeout). The
+// value flows through Client.do / StreamPostJSON via context.WithTimeout.
 func (c *Client) SetTimeout(d time.Duration) {
 	c.MaxTimeout = d
 }

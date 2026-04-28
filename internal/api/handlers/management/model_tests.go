@@ -190,7 +190,13 @@ func (h *Handler) RunModelTests(c *gin.Context) {
 	}
 
 	runner := modeltest.NewRunner(settings)
-	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout+30*time.Second)
+	overallTimeout := timeout + 30*time.Second
+	// The images suite alone can legitimately take several minutes. When the
+	// caller includes it, grant the whole request at least 10 minutes.
+	if containsSuite(settings.Suites, "images") && overallTimeout < 10*time.Minute {
+		overallTimeout = 10 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), overallTimeout)
 	defer cancel()
 	results, err := runner.Run(ctx)
 	if err != nil {
@@ -218,6 +224,19 @@ func summarize(results []modeltest.CheckResult) modelTestSummary {
 		}
 	}
 	return out
+}
+
+func containsSuite(suites []string, target string) bool {
+	if len(suites) == 0 {
+		// Empty slice means "run every registered suite".
+		return target != ""
+	}
+	for _, s := range suites {
+		if strings.EqualFold(strings.TrimSpace(s), target) {
+			return true
+		}
+	}
+	return false
 }
 
 func dedupeNonEmpty(in []string) []string {

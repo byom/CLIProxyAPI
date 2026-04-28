@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/tidwall/gjson"
 )
@@ -391,6 +392,10 @@ func SuiteClaude(ctx context.Context, sc *SuiteContext) []CheckResult {
 // SuiteImages exercises POST /v1/images/generations with an image-capable
 // model (defaults to gpt-image-2). The response contains base64-encoded
 // image data, which the dashboard auto-renders into the detail panel.
+//
+// Image generation frequently needs well over 60 seconds to return, so the
+// suite temporarily raises the shared client timeout when it would otherwise
+// be too tight and restores the previous value on return.
 func SuiteImages(ctx context.Context, sc *SuiteContext) []CheckResult {
 	name := "POST /v1/images/generations"
 	model := strings.TrimSpace(sc.ImagesModel)
@@ -403,6 +408,12 @@ func SuiteImages(ctx context.Context, sc *SuiteContext) []CheckResult {
 		"n":               1,
 		"size":            "1024x1024",
 		"response_format": "b64_json",
+	}
+	const imagesMinTimeout = 5 * time.Minute
+	previousTimeout := sc.Client.MaxTimeout
+	if previousTimeout > 0 && previousTimeout < imagesMinTimeout {
+		sc.Client.SetTimeout(imagesMinTimeout)
+		defer sc.Client.SetTimeout(previousTimeout)
 	}
 	sw := StartStopwatch()
 	reqTrace := jsonReq("POST", "/v1/images/generations", payload)
