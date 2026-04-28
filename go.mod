@@ -31,6 +31,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
+
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect

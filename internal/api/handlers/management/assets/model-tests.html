@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CLIProxyAPI · Model Tests</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a24;
+    --panel-border: #21273a;
+    --muted: #6b7088;
+    --text: #e5e9f0;
+    --accent: #5eead4;
+    --accent-dim: #2dd4bf;
+    --pass: #22c55e;
+    --fail: #ef4444;
+    --skip: #f59e0b;
+    --running: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif; }
+  a { color: var(--accent); }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--panel-border); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .01em; }
+  header .subtitle { color: var(--muted); font-size: 12px; }
+  main { padding: 16px 24px; display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 20px; align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px; padding: 16px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  label { font-size: 12px; color: var(--muted); display: block; margin: 8px 0 4px; }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%; padding: 8px 10px; background: #0b0d14; color: var(--text); border: 1px solid #252a3a; border-radius: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-dim); }
+  button { background: var(--accent); color: #0b0d14; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 12px; }
+  button.secondary { background: #2a3041; color: var(--text); }
+  button.small { padding: 4px 8px; font-size: 11px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 12px; background: #1f2434; color: var(--text); font-size: 11px; border: 1px solid #2b3145; margin: 2px 4px 2px 0; font-family: ui-monospace, Menlo, Consolas, monospace; cursor: pointer; }
+  .chip:hover { background: #262c3e; }
+  .chip.selected { background: var(--accent); color: #0b0d14; border-color: var(--accent-dim); }
+  .target { border-bottom: 1px solid var(--panel-border); padding: 10px 0; }
+  .target:last-child { border-bottom: 0; }
+  .target-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; align-items: baseline; }
+  .target-head .name { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  .target-head .meta { color: var(--muted); font-size: 11px; }
+  .suite-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .suite-list label { display: inline-flex; align-items: center; gap: 6px; background: #1f2434; border: 1px solid #2b3145; border-radius: 4px; padding: 4px 8px; margin: 0; color: var(--text); cursor: pointer; font-size: 11px; }
+  .suite-list input { accent-color: var(--accent); }
+  .results { margin-top: 12px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  tr.status-PASS td.status-cell { color: var(--pass); font-weight: 600; }
+  tr.status-FAIL td.status-cell { color: var(--fail); font-weight: 600; }
+  tr.status-SKIP td.status-cell { color: var(--skip); font-weight: 600; }
+  .summary { margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .summary .pass { color: var(--pass); }
+  .summary .fail { color: var(--fail); }
+  .summary .skip { color: var(--skip); }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--accent-dim); border-top-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; margin-right: 6px; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  pre.detail { white-space: pre-wrap; color: var(--muted); font-size: 11px; margin: 4px 0 0; }
+  tr.result-row { cursor: pointer; }
+  tr.result-row:hover td { background: #1c202f; }
+  tr.result-row td:first-child::before { content: '▸ '; color: var(--muted); font-size: 10px; display: inline-block; width: 10px; }
+  tr.result-row.expanded td:first-child::before { content: '▾ '; }
+  tr.detail-row td { background: #0b0d14; padding: 10px 16px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 1100px) { .detail-grid { grid-template-columns: 1fr; } }
+  .detail-pane { background: #12151f; border: 1px solid var(--panel-border); border-radius: 6px; padding: 10px; }
+  .detail-pane h3 { margin: 0 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .detail-pane h3 .meta { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .detail-pane pre { white-space: pre-wrap; word-break: break-word; color: #cdd3e1; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.45; margin: 0; max-height: 360px; overflow: auto; }
+  .detail-pane .copy-btn { font-size: 10px; padding: 2px 8px; background: #2a3041; color: var(--text); border: 0; border-radius: 4px; cursor: pointer; }
+  .detail-pane .copy-btn:hover { background: #323951; }
+  .image-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .image-grid figure { margin: 0; background: #0b0d14; border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .image-grid figure img { max-width: 240px; max-height: 240px; display: block; border-radius: 2px; }
+  .image-grid figure figcaption { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px; color: var(--muted); word-break: break-all; }
+  .empty { color: var(--muted); font-size: 12px; padding: 12px; text-align: center; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0b0d14; border: 1px solid var(--panel-border); padding: 10px 14px; border-radius: 6px; font-size: 12px; color: var(--text); box-shadow: 0 6px 24px rgba(0,0,0,.4); display: none; }
+  .toast.show { display: block; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>CLIProxyAPI · Model Tests</h1>
+  <span class="subtitle">Exercise /v1, /v1/responses, /v1/messages and /v1beta against your currently logged-in providers.</span>
+</header>
+
+<main>
+  <section class="panel" id="settings">
+    <h2>Settings</h2>
+
+    <label for="mgmtKey">Management key</label>
+    <input type="password" id="mgmtKey" placeholder="Bearer token for /v0/management">
+
+    <label for="apiKey">Upstream API key (optional)</label>
+    <input type="text" id="apiKey" placeholder="defaults to the first api-keys[] entry from config.yaml">
+
+    <label for="baseURL">Server base URL (optional)</label>
+    <input type="text" id="baseURL" placeholder="defaults to this server">
+
+    <label for="timeout">Per-request timeout (seconds)</label>
+    <input type="text" id="timeout" value="120">
+
+    <h2 style="margin-top:16px">Models</h2>
+    <label for="openaiModel">OpenAI (chat / responses)</label>
+    <input type="text" id="openaiModel" placeholder="e.g. gpt-5.4-mini">
+    <label for="responsesModel">Responses override (optional)</label>
+    <input type="text" id="responsesModel" placeholder="falls back to OpenAI model">
+    <label for="claudeModel">Claude</label>
+    <input type="text" id="claudeModel" placeholder="e.g. claude-sonnet-4-5-20250929">
+    <label for="geminiModel">Gemini</label>
+    <input type="text" id="geminiModel" placeholder="e.g. gemini-2.5-pro">
+    <label for="imagesModel">Images (for images suite)</label>
+    <input type="text" id="imagesModel" placeholder="e.g. gpt-image-2">
+
+    <h2 style="margin-top:16px">Suites</h2>
+    <div id="suiteList" class="suite-list"></div>
+
+    <div class="toolbar" style="margin-top:16px">
+      <button id="btnReload" class="secondary">Reload targets</button>
+      <button id="btnSelectAll" class="secondary small">Select all suites</button>
+      <button id="btnClearSuites" class="secondary small">Clear</button>
+    </div>
+    <div class="toolbar">
+      <button id="btnRun">Run tests</button>
+      <span id="runHint" class="summary"></span>
+    </div>
+  </section>
+
+  <section class="panel" id="targets-panel">
+    <h2>Logged-in targets</h2>
+    <div id="targets"><div class="empty">Enter your management key and click <em>Reload targets</em>.</div></div>
+
+    <h2 style="margin-top:20px">Results</h2>
+    <div class="results" id="results">
+      <div class="empty">No run yet.</div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const LS_PREFIX = 'cliproxy.modeltests.';
+  const persisted = {
+    mgmtKey: LS_PREFIX + 'mgmtKey',
+    apiKey: LS_PREFIX + 'apiKey',
+    baseURL: LS_PREFIX + 'baseURL',
+    openaiModel: LS_PREFIX + 'openaiModel',
+    responsesModel: LS_PREFIX + 'responsesModel',
+    claudeModel: LS_PREFIX + 'claudeModel',
+    geminiModel: LS_PREFIX + 'geminiModel',
+    imagesModel: LS_PREFIX + 'imagesModel',
+    suites: LS_PREFIX + 'suites',
+    timeout: LS_PREFIX + 'timeout',
+  };
+
+  let suiteCatalogue = [];   // [{name, description}]
+  let targetsCache = [];     // [{name, models: []}]
+  let selectedSuites = new Set();
+
+  function saveInputs() {
+    for (const [key, storeKey] of Object.entries(persisted)) {
+      if (key === 'suites') continue;
+      const el = $(key);
+      if (el) {
+        try { localStorage.setItem(storeKey, el.value); } catch (e) {}
+      }
+    }
+    try { localStorage.setItem(persisted.suites, JSON.stringify([...selectedSuites])); } catch (e) {}
+  }
+
+  function loadInputs() {
+    for (const [key, storeKey] of Object.entries(persisted)) {
+      if (key === 'suites') continue;
+      const el = $(key);
+      if (!el) continue;
+      try {
+        const v = localStorage.getItem(storeKey);
+        if (v !== null) el.value = v;
+      } catch (e) {}
+    }
+    try {
+      const raw = localStorage.getItem(persisted.suites);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) selectedSuites = new Set(arr);
+      }
+    } catch (e) {}
+    applyQueryOverrides();
+  }
+
+  // Allows the launcher to seed input values via `?apiKey=...` (and similar).
+  // Recognised params: mgmtKey, apiKey, baseURL, openaiModel, responsesModel,
+  // claudeModel, geminiModel, timeout, suites. After reading, the query is
+  // stripped from the URL so secrets do not persist in browser history.
+  function applyQueryOverrides() {
+    const params = new URLSearchParams(location.search || '');
+    if (![...params.keys()].length) return;
+    const fieldParams = [
+      'mgmtKey', 'apiKey', 'baseURL', 'openaiModel', 'responsesModel',
+      'claudeModel', 'geminiModel', 'timeout',
+    ];
+    let touched = false;
+    for (const name of fieldParams) {
+      if (params.has(name)) {
+        const el = $(name);
+        if (el) { el.value = params.get(name); touched = true; }
+      }
+    }
+    if (params.has('suites')) {
+      const raw = params.get('suites') || '';
+      selectedSuites = new Set(raw.split(',').map(s => s.trim()).filter(Boolean));
+      touched = true;
+    }
+    if (touched) {
+      saveInputs();
+      try {
+        const clean = location.pathname + location.hash;
+        history.replaceState(null, document.title, clean);
+      } catch (e) {}
+      toast('Seeded inputs from URL');
+    }
+  }
+
+  function toast(msg, ms = 2500) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const headers = Object.assign({}, opts.headers || {});
+    const key = $('mgmtKey').value.trim();
+    if (key) headers['Authorization'] = 'Bearer ' + key;
+    if (opts.body && typeof opts.body !== 'string') {
+      headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(opts.body);
+    }
+    let res;
+    try {
+      res = await fetch(path, {
+        method: opts.method || 'GET',
+        headers: headers,
+        body: opts.body,
+        cache: 'no-store',
+        mode: 'same-origin',
+        credentials: 'same-origin',
+      });
+    } catch (e) {
+      const reason = e && e.message ? e.message : String(e);
+      throw new Error(`network: ${reason} (is the server window still open?)`);
+    }
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch (e) {}
+    if (!res.ok) {
+      const msg = json && json.error ? json.error : res.statusText || ('HTTP ' + res.status);
+      throw new Error(`${res.status} ${msg}`);
+    }
+    return json;
+  }
+
+  function renderSuiteList() {
+    const host = $('suiteList');
+    host.innerHTML = '';
+    suiteCatalogue.forEach(s => {
+      const lbl = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = s.name;
+      cb.checked = selectedSuites.has(s.name);
+      cb.addEventListener('change', () => {
+        if (cb.checked) selectedSuites.add(s.name); else selectedSuites.delete(s.name);
+        saveInputs();
+      });
+      const name = document.createElement('span');
+      name.textContent = s.name;
+      name.title = s.description;
+      lbl.appendChild(cb);
+      lbl.appendChild(name);
+      host.appendChild(lbl);
+    });
+  }
+
+  function renderTargets() {
+    const host = $('targets');
+    if (!targetsCache.length) {
+      host.innerHTML = '<div class="empty">No auth targets found. Log in via <code>run-source.bat</code> and click <em>Reload targets</em>.</div>';
+      return;
+    }
+    host.innerHTML = '';
+    targetsCache.forEach(t => {
+      const wrap = document.createElement('div');
+      wrap.className = 'target';
+      const head = document.createElement('div');
+      head.className = 'target-head';
+      head.innerHTML = `<div class="name">${escapeHtml(t.name)}</div>
+        <div class="meta">${escapeHtml(t.type || t.provider || '')} ${t.disabled ? '· disabled' : ''} ${t.unavailable ? '· unavailable' : ''}</div>`;
+      wrap.appendChild(head);
+      const chips = document.createElement('div');
+      if (!t.models || !t.models.length) {
+        const empty = document.createElement('span');
+        empty.className = 'meta';
+        empty.textContent = '(no models reported)';
+        chips.appendChild(empty);
+      } else {
+        t.models.forEach(id => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = id;
+          chip.addEventListener('click', () => {
+            const target = classifyModel(id);
+            const el = $(target);
+            if (el) { el.value = id; saveInputs(); toast('Set ' + target + ' = ' + id); }
+          });
+          chips.appendChild(chip);
+        });
+      }
+      wrap.appendChild(chips);
+      host.appendChild(wrap);
+    });
+  }
+
+  function classifyModel(id) {
+    const lower = id.toLowerCase();
+    if (lower.startsWith('claude')) return 'claudeModel';
+    if (lower.startsWith('gemini')) return 'geminiModel';
+    if (lower.includes('image') || lower.includes('imagen')) return 'imagesModel';
+    return 'openaiModel';
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  async function loadSuites() {
+    try {
+      const res = await api('/v0/management/model-tests/suites');
+      suiteCatalogue = res.suites || [];
+      if (!selectedSuites.size) {
+        suiteCatalogue.forEach(s => selectedSuites.add(s.name));
+      }
+      renderSuiteList();
+    } catch (e) {
+      toast('Suites: ' + e.message);
+    }
+  }
+
+  async function loadTargets() {
+    try {
+      const res = await api('/v0/management/model-tests/targets');
+      targetsCache = res.targets || [];
+      renderTargets();
+      toast(`Loaded ${targetsCache.length} auth target(s)`);
+    } catch (e) {
+      toast('Targets: ' + e.message);
+      const host = $('targets');
+      host.innerHTML = `<div class="empty">Error: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  function renderRunning(selected) {
+    const host = $('results');
+    host.innerHTML = '';
+    const tbl = document.createElement('table');
+    tbl.innerHTML = `<thead><tr><th>Suite</th><th>Status</th><th>ms</th><th>Detail</th></tr></thead><tbody></tbody>`;
+    const body = tbl.querySelector('tbody');
+    selected.forEach(name => {
+      const tr = document.createElement('tr');
+      tr.dataset.suite = name;
+      tr.innerHTML = `<td>${escapeHtml(name)}</td><td class="status-cell"><span class="spinner"></span>running…</td><td>—</td><td></td>`;
+      body.appendChild(tr);
+    });
+    host.appendChild(tbl);
+    const summary = document.createElement('div');
+    summary.className = 'summary';
+    summary.id = 'resultsSummary';
+    summary.textContent = 'awaiting run…';
+    host.appendChild(summary);
+  }
+
+  function renderResults(selected, results, summary) {
+    const host = $('results');
+    host.innerHTML = '';
+    if (!results || !results.length) {
+      host.innerHTML = '<div class="empty">No results returned.</div>';
+      return;
+    }
+    const tbl = document.createElement('table');
+    tbl.innerHTML = `<thead><tr><th>Suite</th><th>Status</th><th>ms</th><th>Detail / error</th></tr></thead><tbody></tbody>`;
+    const body = tbl.querySelector('tbody');
+    results.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.className = 'status-' + r.status;
+      const detailEl = document.createElement('td');
+      detailEl.innerHTML = escapeHtml(r.detail || '');
+      if (r.error) {
+        const pre = document.createElement('pre');
+        pre.className = 'detail';
+        pre.textContent = r.error;
+        detailEl.appendChild(pre);
+      }
+      tr.innerHTML = `<td>${escapeHtml(r.name)}</td><td class="status-cell">${escapeHtml(r.status)}</td><td>${(r.elapsed_ms || 0).toFixed(0)}</td>`;
+      tr.appendChild(detailEl);
+      body.appendChild(tr);
+    });
+    host.appendChild(tbl);
+    if (summary) {
+      const el = document.createElement('div');
+      el.className = 'summary';
+      el.innerHTML = `<span class="pass">${summary.pass} passed</span>, <span class="fail">${summary.fail} failed</span>, <span class="skip">${summary.skip} skipped</span> (of ${summary.total})`;
+      host.appendChild(el);
+    }
+  }
+
+  async function runTests() {
+    const picked = [...selectedSuites];
+    if (!picked.length) {
+      toast('Select at least one suite.');
+      return;
+    }
+    saveInputs();
+    const timeoutS = parseInt($('timeout').value, 10) || 120;
+    const commonBody = {
+      openai_model: $('openaiModel').value.trim(),
+      responses_model: $('responsesModel').value.trim(),
+      claude_model: $('claudeModel').value.trim(),
+      gemini_model: $('geminiModel').value.trim(),
+      images_model: $('imagesModel').value.trim(),
+      api_key: $('apiKey').value.trim(),
+      base_url: $('baseURL').value.trim(),
+      timeout_seconds: timeoutS,
+    };
+
+    $('btnRun').disabled = true;
+    $('runHint').textContent = 'Running…';
+    renderRunning(picked);
+    const tbody = document.querySelector('#results table tbody');
+
+    const all = [];
+    let passCount = 0, failCount = 0, skipCount = 0;
+
+    for (const name of picked) {
+      const row = tbody ? tbody.querySelector(`tr[data-suite="${CSS.escape(name)}"]`) : null;
+      if (row) {
+        row.className = 'status-running';
+        row.querySelector('.status-cell').innerHTML = '<span class="spinner"></span>running…';
+      }
+      const body = Object.assign({}, commonBody, { suites: [name] });
+      let suiteResults = [];
+      try {
+        const res = await api('/v0/management/model-tests/run', { method: 'POST', body: body });
+        suiteResults = res.results || [];
+      } catch (e) {
+        suiteResults = [{
+          name: name,
+          status: 'FAIL',
+          elapsed_ms: 0,
+          detail: '',
+          error: e.message,
+        }];
+      }
+      for (const r of suiteResults) {
+        all.push(r);
+        if (r.status === 'PASS') passCount++;
+        else if (r.status === 'FAIL') failCount++;
+        else skipCount++;
+      }
+      // Replace the single "running" row (keyed by suite name) with all
+      // result rows returned by the server (Gemini returns two).
+      if (row && tbody) {
+        let anchor = row.nextSibling;
+        tbody.removeChild(row);
+        for (const r of suiteResults) {
+          const tr = buildResultRow(r);
+          tbody.insertBefore(tr, anchor);
+        }
+      }
+      updateRunningSummary(passCount, failCount, skipCount, all.length);
+    }
+
+    $('btnRun').disabled = false;
+    $('runHint').textContent = `${passCount}/${all.length} passed`;
+    if (all.length) {
+      const el = document.createElement('div');
+      el.className = 'summary';
+      el.innerHTML = `<span class="pass">${passCount} passed</span>, <span class="fail">${failCount} failed</span>, <span class="skip">${skipCount} skipped</span> (of ${all.length})`;
+      const existing = $('resultsSummary');
+      if (existing) existing.replaceWith(el);
+      else $('results').appendChild(el);
+    }
+  }
+
+  function buildResultRow(r) {
+    const tr = document.createElement('tr');
+    tr.className = 'result-row status-' + r.status;
+    tr.dataset.suite = r.name;
+    const detailTd = document.createElement('td');
+    detailTd.innerHTML = escapeHtml(r.detail || '');
+    if (r.error) {
+      const pre = document.createElement('pre');
+      pre.className = 'detail';
+      pre.textContent = r.error;
+      detailTd.appendChild(pre);
+    }
+    tr.innerHTML = `<td>${escapeHtml(r.name)}</td><td class="status-cell">${escapeHtml(r.status)}</td><td>${(r.elapsed_ms || 0).toFixed(0)}</td>`;
+    tr.appendChild(detailTd);
+    // Click to toggle the inline detail row. Store the result payload
+    // on the row via a closure so we do not depend on module-level state.
+    tr.addEventListener('click', () => toggleDetailRow(tr, r));
+    return tr;
+  }
+
+  function toggleDetailRow(row, r) {
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains('detail-row') && next.dataset.peer === r.name) {
+      next.remove();
+      row.classList.remove('expanded');
+      return;
+    }
+    // Collapse other open details to keep the table tidy.
+    document.querySelectorAll('tr.detail-row').forEach(el => el.remove());
+    document.querySelectorAll('tr.result-row.expanded').forEach(el => el.classList.remove('expanded'));
+    const detail = document.createElement('tr');
+    detail.className = 'detail-row';
+    detail.dataset.peer = r.name;
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    td.appendChild(buildDetailPanels(r));
+    detail.appendChild(td);
+    row.after(detail);
+    row.classList.add('expanded');
+  }
+
+  function buildDetailPanels(r) {
+    const grid = document.createElement('div');
+    grid.className = 'detail-grid';
+    grid.appendChild(buildPane('Request', r.request));
+    grid.appendChild(buildPane('Response', r.response));
+    const images = collectImages(r.response);
+    if (images.length) {
+      const wrap = document.createElement('div');
+      wrap.style.gridColumn = '1 / -1';
+      const title = document.createElement('h3');
+      title.className = 'empty';
+      title.textContent = `Detected ${images.length} image(s)`;
+      title.style.textAlign = 'left';
+      title.style.margin = '12px 0 4px';
+      wrap.appendChild(title);
+      const gridEl = document.createElement('div');
+      gridEl.className = 'image-grid';
+      images.forEach((img, i) => {
+        const fig = document.createElement('figure');
+        const imgEl = document.createElement('img');
+        imgEl.src = img.src;
+        imgEl.alt = img.label || ('image-' + (i + 1));
+        imgEl.loading = 'lazy';
+        imgEl.onerror = () => { imgEl.replaceWith(document.createTextNode('(failed to load)')); };
+        fig.appendChild(imgEl);
+        const cap = document.createElement('figcaption');
+        cap.textContent = img.label || ('image ' + (i + 1));
+        fig.appendChild(cap);
+        gridEl.appendChild(fig);
+      });
+      wrap.appendChild(gridEl);
+      grid.appendChild(wrap);
+    }
+    return grid;
+  }
+
+  function buildPane(title, trace) {
+    const pane = document.createElement('div');
+    pane.className = 'detail-pane';
+    const h = document.createElement('h3');
+    const spanTitle = document.createElement('span');
+    spanTitle.textContent = title;
+    h.appendChild(spanTitle);
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    if (trace) {
+      if (title === 'Request') {
+        meta.textContent = `${trace.method || 'POST'} ${trace.url || ''}`;
+      } else {
+        const kind = trace.kind || '';
+        const status = trace.status ? trace.status : '';
+        meta.textContent = [status, kind].filter(Boolean).join(' · ');
+      }
+    }
+    h.appendChild(meta);
+    const copy = document.createElement('button');
+    copy.className = 'copy-btn';
+    copy.textContent = 'copy';
+    copy.title = 'Copy body to clipboard';
+    h.appendChild(copy);
+    pane.appendChild(h);
+    const pre = document.createElement('pre');
+    const body = trace ? (trace.body || '') : '';
+    if (trace && trace.kind === 'json') {
+      pre.textContent = prettyJSON(body);
+    } else {
+      pre.textContent = body || '(empty)';
+    }
+    pane.appendChild(pre);
+    copy.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(pre.textContent || '').then(
+        () => { copy.textContent = 'copied'; setTimeout(() => { copy.textContent = 'copy'; }, 1000); },
+        () => { copy.textContent = 'failed'; }
+      );
+    });
+    return pane;
+  }
+
+  function prettyJSON(raw) {
+    if (!raw) return '(empty)';
+    try { return JSON.stringify(JSON.parse(raw), null, 2); } catch (e) { return raw; }
+  }
+
+  // Walks a parsed object and yields every string value, along with a dotted
+  // path representing where it came from.
+  function walkStrings(node, path, out) {
+    if (typeof node === 'string') {
+      out.push({ path: path, value: node });
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, i) => walkStrings(item, path + '[' + i + ']', out));
+      return;
+    }
+    if (node && typeof node === 'object') {
+      for (const key of Object.keys(node)) {
+        walkStrings(node[key], path ? path + '.' + key : key, out);
+      }
+    }
+  }
+
+  function collectImages(trace) {
+    if (!trace || !trace.body) return [];
+    let parsed = null;
+    try { parsed = JSON.parse(trace.body); } catch (e) {}
+    const found = [];
+    const seen = new Set();
+    const push = (src, label) => {
+      if (!src || seen.has(src)) return;
+      seen.add(src);
+      found.push({ src, label });
+    };
+
+    if (parsed) {
+      const strings = [];
+      walkStrings(parsed, '', strings);
+      for (const { path, value } of strings) {
+        if (typeof value !== 'string') continue;
+        if (value.startsWith('data:image/')) {
+          push(value, path);
+          continue;
+        }
+        // b64_json-style: parent key gives us the hint, otherwise heuristic
+        if (/b64_json$/i.test(path) && /^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 120) {
+          push('data:image/png;base64,' + value.replace(/\s+/g, ''), path);
+          continue;
+        }
+        if (/(^|\.)url$/i.test(path) && /^https?:\/\//i.test(value) && /\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(value)) {
+          push(value, path);
+          continue;
+        }
+        if (/image_url$/i.test(path) && /^https?:\/\//i.test(value)) {
+          push(value, path);
+        }
+      }
+    }
+
+    // Raw fallback: scan text body for data-URIs (covers SSE streams).
+    const textBody = trace.body || '';
+    const dataUriRe = /data:image\/(?:png|jpe?g|gif|webp|bmp);base64,[A-Za-z0-9+/=]+/g;
+    let m;
+    while ((m = dataUriRe.exec(textBody)) !== null) {
+      push(m[0], 'inline');
+    }
+    return found.slice(0, 16);
+  }
+
+  function updateRunningSummary(passCount, failCount, skipCount, total) {
+    const el = $('resultsSummary');
+    if (!el) return;
+    el.innerHTML = `<span class="pass">${passCount} passed</span>, <span class="fail">${failCount} failed</span>, <span class="skip">${skipCount} skipped</span> (of ${total}) · in progress…`;
+  }
+
+  function wireEvents() {
+    ['mgmtKey', 'apiKey', 'baseURL', 'openaiModel', 'responsesModel', 'claudeModel', 'geminiModel', 'imagesModel', 'timeout'].forEach(id => {
+      $(id).addEventListener('input', saveInputs);
+    });
+    $('btnReload').addEventListener('click', async () => {
+      await loadSuites();
+      await loadTargets();
+    });
+    $('btnRun').addEventListener('click', runTests);
+    $('btnSelectAll').addEventListener('click', () => {
+      selectedSuites = new Set(suiteCatalogue.map(s => s.name));
+      renderSuiteList();
+      saveInputs();
+    });
+    $('btnClearSuites').addEventListener('click', () => {
+      selectedSuites = new Set();
+      renderSuiteList();
+      saveInputs();
+    });
+  }
+
+  loadInputs();
+  wireEvents();
+  if ($('mgmtKey').value.trim()) {
+    loadSuites().then(loadTargets);
+  }
+})();
+</script>
+</body>
+</html>

@@ -342,6 +342,8 @@ func (s *Server) setupRoutes() {
 	s.engine.HEAD("/healthz", healthzHandler)
 
 	s.engine.GET("/management.html", s.serveManagementControlPanel)
+	s.engine.GET("/management/model-tests", s.serveModelTestsPage)
+	s.engine.GET("/management/model-tests.html", s.serveModelTestsPage)
 	openaiHandlers := openai.NewOpenAIAPIHandler(s.handlers)
 	geminiHandlers := gemini.NewGeminiAPIHandler(s.handlers)
 	geminiCLIHandlers := gemini.NewGeminiCLIAPIHandler(s.handlers)
@@ -644,6 +646,10 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/auth-files", s.mgmt.ListAuthFiles)
 		mgmt.GET("/auth-files/models", s.mgmt.GetAuthFileModels)
 		mgmt.GET("/model-definitions/:channel", s.mgmt.GetStaticModelDefinitions)
+
+		mgmt.GET("/model-tests/suites", s.mgmt.GetModelTestSuites)
+		mgmt.GET("/model-tests/targets", s.mgmt.GetModelTestTargets)
+		mgmt.POST("/model-tests/run", s.mgmt.RunModelTests)
 		mgmt.GET("/auth-files/download", s.mgmt.DownloadAuthFile)
 		mgmt.POST("/auth-files", s.mgmt.UploadAuthFile)
 		mgmt.DELETE("/auth-files", s.mgmt.DeleteAuthFile)
@@ -669,6 +675,23 @@ func (s *Server) managementAvailabilityMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func (s *Server) serveModelTestsPage(c *gin.Context) {
+	cfg := s.cfg
+	if cfg == nil || cfg.RemoteManagement.DisableControlPanel {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	html := managementHandlers.ModelTestsPageHTML()
+	if len(html) == 0 {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Cache-Control", "no-store")
+	c.Writer.WriteHeader(http.StatusOK)
+	_, _ = c.Writer.Write(html)
 }
 
 func (s *Server) serveManagementControlPanel(c *gin.Context) {
