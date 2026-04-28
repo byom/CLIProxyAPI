@@ -105,6 +105,14 @@ CLIProxyAPI 已内置对 [Amp CLI](https://ampcode.com) 和 Amp IDE 扩展的支
 - 凭据加载/更新: [docs/sdk-watcher_CN.md](docs/sdk-watcher_CN.md)
 - 自定义 Provider 示例：`examples/custom-provider`
 
+## AI Agent 接入
+
+把本文档喂给任意 AI 编码代理（Claude Code、Cursor、Codex CLI、Cline……），
+它就能**零人工参与**地把一个工程接入正在运行的 CLIProxyAPI：
+
+- 中文：[docs/ai-integration_CN.md](docs/ai-integration_CN.md)
+- English: [docs/ai-integration.md](docs/ai-integration.md)
+
 ## 贡献
 
 欢迎贡献！请随时提交 Pull Request。

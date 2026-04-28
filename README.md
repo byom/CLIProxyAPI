@@ -106,6 +106,15 @@ These routes help you select the protocol surface, but they do not by themselves
 - Watcher: [docs/sdk-watcher.md](docs/sdk-watcher.md)
 - Custom Provider Example: `examples/custom-provider`
 
+## AI Agent Integration
+
+Point an AI coding agent (Claude Code, Cursor, Codex CLI, Cline, …) at this
+doc to let it wire any project into a running CLIProxyAPI instance with
+zero human intervention:
+
+- English: [docs/ai-integration.md](docs/ai-integration.md)
+- 中文: [docs/ai-integration_CN.md](docs/ai-integration_CN.md)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
