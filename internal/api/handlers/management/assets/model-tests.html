@@ -267,6 +267,9 @@
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch (e) {}
     if (!res.ok) {
+      if (res.status === 404 && path.startsWith('/v0/management/')) {
+        throw new Error('Management API is not enabled. Start the server with MANAGEMENT_PASSWORD set, then reload this page.');
+      }
       const msg = json && json.error ? json.error : res.statusText || ('HTTP ' + res.status);
       throw new Error(`${res.status} ${msg}`);
     }
@@ -298,7 +301,7 @@
   function renderTargets() {
     const host = $('targets');
     if (!targetsCache.length) {
-      host.innerHTML = '<div class="empty">No auth targets found. Log in via <code>run-source.bat</code> and click <em>Reload targets</em>.</div>';
+      host.innerHTML = '<div class="empty">No auth targets found. Log in via <code>run-cli-api.bat</code> and click <em>Reload targets</em>.</div>';
       return;
     }
     host.innerHTML = '';

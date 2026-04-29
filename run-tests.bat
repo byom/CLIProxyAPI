@@ -6,7 +6,7 @@ rem CLIProxyAPI one-shot test launcher for Windows (Go + browser UI).
 rem
 rem Responsibilities:
 rem   1. Ensure the Go toolchain is available (reuse the portable install from
-rem      run-source.bat when the repo already has `.tools\go`).
+rem      run-cli-api.bat when the repo already has `.tools\go`).
 rem   2. Run the offline unit tests: go test ./internal/modeltest/...
 rem      ./internal/api/handlers/management/...
 rem   3. Open the Model Tests dashboard in the default browser so the user can
@@ -14,14 +14,14 @@ rem      drive the live tests interactively.
 rem
 rem Flags:
 rem   Default (no flags): probe the server; if it is not listening, launch
-rem                       run-source.bat --no-menu in a new window and wait
+rem                       run-cli-api.bat --no-menu in a new window and wait
 rem                       for readiness. Then open the dashboard in the default
 rem                       browser with ?apiKey=sk-firefly seeded. Skip `go test`.
 rem   --with-go-tests             Also run `go test` before opening the browser.
 rem   --offline-only              Only run `go test`, do not open the browser.
 rem   --probe                     Probe /healthz (default).
 rem   --no-probe                  Skip the probe and open the URL unconditionally.
-rem   --start-server              Force auto-launch run-source.bat --no-menu
+rem   --start-server              Force auto-launch run-cli-api.bat --no-menu
 rem                               in a new window even if the probe succeeds.
 rem                               (Usually you do not need this flag; auto-start
 rem                                is already the default when the probe fails.)
@@ -137,7 +137,7 @@ if exist "%CLI_PROXY_LOCAL_GO%\bin\go.exe" (
     if not errorlevel 1 exit /b 0
 )
 echo [run-tests] ERROR: Go toolchain not found.
-echo [run-tests] Install it manually or run `run-source.bat` once to bootstrap a portable copy under .tools\go.
+echo [run-tests] Install it manually or run `run-cli-api.bat` once to bootstrap a portable copy under .tools\go.
 exit /b 1
 
 :run_go_tests
@@ -181,6 +181,7 @@ if "%SKIP_PROBE%"=="1" goto launch_browser
 call :probe_server
 if not errorlevel 1 (
     call :check_mgmt_routes
+    if errorlevel 1 exit /b 1
     goto launch_browser
 )
 
@@ -198,7 +199,7 @@ if "%AUTO_START_SERVER%"=="1" (
 
 echo [run-tests] ERROR: server not reachable at %BASE_URL%.
 echo [run-tests]        Start it in another terminal:
-echo [run-tests]            .\run-source.bat
+echo [run-tests]            .\run-cli-api.bat --no-menu
 echo [run-tests]        Or drop --no-start-server so this script launches it for you,
 echo [run-tests]        or pass --no-probe to open the URL anyway.
 exit /b 1
@@ -245,10 +246,10 @@ del "%MGMT_PROBE%" >nul 2>nul
 if "%MGMT_RC%"=="0" exit /b 0
 if "%MGMT_RC%"=="2" goto mgmt_restart
 if "%MGMT_RC%"=="3" (
-    echo [run-tests] WARN: management endpoint returned 401/403.
+    echo [run-tests] ERROR: management endpoint returned 401/403.
     echo [run-tests]       Your --mgmt-key does not match the key the running server was started with.
     echo [run-tests]       Either pass the right --mgmt-key, or stop that server window and rerun.
-    exit /b 0
+    exit /b 1
 )
 echo [run-tests] WARN: could not verify /v0/management/* (rc=%MGMT_RC%); continuing anyway.
 exit /b 0
@@ -279,12 +280,12 @@ powershell -NoProfile -Command "Start-Sleep -Seconds 2"
 exit /b 0
 
 :start_server_in_new_window
-echo [run-tests] launching run-source.bat --no-menu in a new window ...
+echo [run-tests] launching run-cli-api.bat --no-menu in a new window ...
 if not "%SEED_MGMT_KEY%"=="" (
     echo [run-tests] exporting MANAGEMENT_PASSWORD=%SEED_MGMT_KEY% so /v0/management routes register
     set "MANAGEMENT_PASSWORD=%SEED_MGMT_KEY%"
 )
-start "CLIProxyAPI" cmd /k ""%SCRIPT_DIR%run-source.bat" --no-menu"
+start "CLIProxyAPI" cmd /k ""%SCRIPT_DIR%run-cli-api.bat" --no-menu"
 exit /b 0
 
 :wait_server_ready
