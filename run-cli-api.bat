@@ -21,6 +21,7 @@ rem   --auth-dir <path>  Override the auth directory used for login detection.
 rem   --config <path>    Override the config file path passed to the server.
 rem   --no-browser       Pass `-no-browser` to the login flows.
 rem   --no-go-install    Do not auto-install Go; just fail when missing.
+rem   --kill-port        Stop any process listening on port 8317 before start.
 rem -----------------------------------------------------------------------------
 
 set "SCRIPT_DIR=%~dp0"
@@ -33,6 +34,8 @@ set "CLI_PROXY_CONFIG=%SCRIPT_DIR%config.yaml"
 set "CLI_PROXY_EXAMPLE_CONFIG=%SCRIPT_DIR%config.example.yaml"
 set "CLI_PROXY_NO_BROWSER="
 set "CLI_PROXY_NO_GO_INSTALL="
+set "CLI_PROXY_KILL_PORT="
+set "CLI_PROXY_PORT=8317"
 set "CLI_PROXY_LOCAL_GO=%SCRIPT_DIR%.tools\go"
 
 :parse_args
@@ -49,6 +52,11 @@ if /i "%~1"=="--no-browser" (
 )
 if /i "%~1"=="--no-go-install" (
     set "CLI_PROXY_NO_GO_INSTALL=1"
+    shift
+    goto parse_args
+)
+if /i "%~1"=="--kill-port" (
+    set "CLI_PROXY_KILL_PORT=1"
     shift
     goto parse_args
 )
@@ -71,7 +79,7 @@ if /i "%~1"=="--config" (
     goto parse_args
 )
 echo [run-source] unknown argument: %~1
-echo Usage: run-source.bat [--no-menu] [--no-browser] [--no-go-install]
+echo Usage: run-source.bat [--no-menu] [--no-browser] [--no-go-install] [--kill-port]
 echo                       [--provider name] [--auth-dir path] [--config path]
 popd >nul
 exit /b 2
@@ -106,8 +114,9 @@ echo   7) Skip login, run server now
 echo   0) Exit
 echo.
 set "MENU_CHOICE="
-set /p MENU_CHOICE=Enter choice [1-7, 0 to exit]: 
+set /p MENU_CHOICE=Enter choice [1-7, Enter to skip, 0 to exit]: 
 
+if "%MENU_CHOICE%"=="" goto run_server
 if "%MENU_CHOICE%"=="0" goto exit_ok
 if "%MENU_CHOICE%"=="1" (set "CLI_PROXY_PROVIDER=gemini" & goto handle_provider)
 if "%MENU_CHOICE%"=="2" (set "CLI_PROXY_PROVIDER=codex" & goto handle_provider)
@@ -126,6 +135,7 @@ goto run_server
 
 :run_server
 echo.
+call :ensure_port_available || goto exit_err
 echo [run-source] starting proxy via `go run ./cmd/server`
 echo [run-source] press Ctrl+C to stop.
 go run ./cmd/server --config "%CLI_PROXY_CONFIG%"
@@ -229,6 +239,43 @@ echo [run-source] bootstrapping config.yaml from config.example.yaml
 copy /Y "%CLI_PROXY_EXAMPLE_CONFIG%" "%CLI_PROXY_CONFIG%" >nul
 if errorlevel 1 (
     echo [run-source] ERROR: failed to copy config.example.yaml to %CLI_PROXY_CONFIG%
+    exit /b 1
+)
+exit /b 0
+
+:ensure_port_available
+set "PORT_PID="
+set "PORT_NAME="
+set "PORT_COMMAND="
+for /f "usebackq tokens=1,* delims=|" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$conn = Get-NetTCPConnection -LocalPort $env:CLI_PROXY_PORT -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if (-not $conn) { exit 1 }; $p = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $conn.OwningProcess) -ErrorAction SilentlyContinue; $name = if ($p) { $p.Name } else { '' }; $cmd = if ($p) { $p.CommandLine } else { '' }; Write-Output ([string]$conn.OwningProcess + '|' + $name + '|' + $cmd)"`) do (
+    set "PORT_PID=%%A"
+    set "PORT_DETAIL=%%B"
+)
+if "%PORT_PID%"=="" exit /b 0
+for /f "tokens=1,* delims=|" %%A in ("!PORT_DETAIL!") do (
+    set "PORT_NAME=%%A"
+    set "PORT_COMMAND=%%B"
+)
+
+echo [run-source] port %CLI_PROXY_PORT% is already in use.
+echo [run-source] pid: !PORT_PID!
+if not "!PORT_NAME!"=="" echo [run-source] process: !PORT_NAME!
+if not "!PORT_COMMAND!"=="" echo [run-source] command: !PORT_COMMAND!
+
+if defined CLI_PROXY_KILL_PORT goto kill_port_process
+
+set "KILL_CHOICE="
+set /p KILL_CHOICE=Stop this process and start CLIProxyAPI? [y/N]: 
+if /i not "!KILL_CHOICE!"=="Y" (
+    echo [run-source] start canceled because port %CLI_PROXY_PORT% is in use.
+    exit /b 1
+)
+
+:kill_port_process
+echo [run-source] stopping pid !PORT_PID! ...
+taskkill /PID !PORT_PID! /F >nul
+if errorlevel 1 (
+    echo [run-source] ERROR: failed to stop pid !PORT_PID!.
     exit /b 1
 )
 exit /b 0
